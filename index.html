@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master's Degree Timeline Budget Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Dashboard & Timeline Header -->
+        <div class="bg-white rounded-xl shadow-sm p-6 md:p-8 border border-slate-200">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-6 border-b border-slate-200">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Master's Degree Financial Forecast</h1>
+                    <p class="text-xs text-slate-500">Timeline planner with customizable summer breaks and term-based incomes</p>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg">
+                    <label class="text-xs font-semibold text-slate-700">Total Duration:</label>
+                    <input type="number" id="totalMonthsInput" value="18" min="1" max="36" onchange="changeTotalMonths(this.value)" class="w-14 bg-white border border-slate-300 rounded px-2 py-0.5 text-center text-sm font-bold text-slate-800">
+                    <span class="text-xs text-slate-500 font-medium">Months</span>
+                </div>
+            </div>
+
+            <!-- Top Level Statistics -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+                    <p class="text-xs text-emerald-600 font-semibold uppercase tracking-wide">Total Projected Income</p>
+                    <p class="text-2xl font-bold text-emerald-700 mt-1" id="totalIncome">$0.00</p>
+                    <p class="text-[11px] text-emerald-600 mt-0.5" id="avgMonthlyIncome">Avg: $0.00 /mo</p>
+                </div>
+                <div class="bg-rose-50 p-4 rounded-lg border border-rose-100">
+                    <p class="text-xs text-rose-600 font-semibold uppercase tracking-wide">Total Projected Expenses</p>
+                    <p class="text-2xl font-bold text-rose-700 mt-1" id="totalExpenses">$0.00</p>
+                    <p class="text-[11px] text-rose-600 mt-0.5" id="avgMonthlyExpenses">Avg: $0.00 /mo</p>
+                </div>
+                <div class="p-4 rounded-lg border" id="balanceCard">
+                    <p class="text-xs font-semibold uppercase tracking-wide" id="balanceLabel">Net Degree Balance</p>
+                    <p class="text-2xl font-bold mt-1" id="netBalance">$0.00</p>
+                    <p class="text-[11px] mt-0.5" id="avgMonthlyBalance">Avg: $0.00 /mo</p>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="mt-6">
+                <div class="flex justify-between text-xs font-semibold text-slate-500 mb-1">
+                    <span>Overall Budget Coverage</span>
+                    <span id="ratioText">0% covered</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden flex">
+                    <div id="expenseBar" class="bg-rose-500 h-3" style="width: 0%"></div>
+                    <div id="incomeBar" class="bg-emerald-500 h-3" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Income Section -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Income Streams</h2>
+                        <p class="text-xs text-slate-500">Regular jobs, vacation jobs, and freelance work</p>
+                    </div>
+                    <button onclick="addEntry('income')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                        + Add Income
+                    </button>
+                </div>
+                <div id="incomeList" class="space-y-4">
+                    <!-- Incomes -->
+                </div>
+            </div>
+
+            <!-- Expense Section -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Expenses</h2>
+                        <p class="text-xs text-slate-500">Tuition fees, living costs, and car maintenance</p>
+                    </div>
+                    <button onclick="addEntry('expense')" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                        + Add Expense
+                    </button>
+                </div>
+                <div id="expenseList" class="space-y-4">
+                    <!-- Expenses -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const WEEKS_IN_MONTH = 4.333;
+        let totalMonths = 18;
+
+        let data = {
+            income: [
+                { 
+                    id: generateId(), 
+                    name: "Restaurant Job (Semester Terms)", 
+                    details: "Saturday & Sunday evening shifts (8 hrs/wk @ $20/hr)", 
+                    amount: 160, 
+                    period: "weekly",
+                    durationType: "custom",
+                    // Active for 15 months (excluding summer break months 4, 5, 6)
+                    activeMonths: [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+                },
+                { 
+                    id: generateId(), 
+                    name: "Summer Vacation Job (Full-Time)", 
+                    details: "Working 40 hrs/week @ $20/hr during uni summer break", 
+                    amount: 800, 
+                    period: "weekly",
+                    durationType: "custom",
+                    // Active only during the 3-month summer vacation
+                    activeMonths: [4, 5, 6] 
+                }
+            ],
+            expense: [
+                { 
+                    id: generateId(), 
+                    name: "RMIT Tuition Set-Aside", 
+                    details: "3 semesters remaining ($17k each = $51,000 total)", 
+                    amount: 2833.33, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Accommodation (Rent)", 
+                    details: "Shared accommodation in Hallam area", 
+                    amount: 780, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Groceries & Utilities", 
+                    details: "Weekly food and shared house bills", 
+                    amount: 455, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Car: Insurance & Service", 
+                    details: "Mazda 2 third-party property damage & regular servicing", 
+                    amount: 105, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Car: Registration (Rego)", 
+                    details: "Mandatory VicRoads registration (~$900/year)", 
+                    amount: 75, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Car: Fuel & Emergency Fund", 
+                    details: "Commute to work and unexpected car repairs fund", 
+                    amount: 110, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Public Transport (Uni)", 
+                    details: "PTV trains and buses to RMIT city campus", 
+                    amount: 72, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                },
+                { 
+                    id: generateId(), 
+                    name: "Mobile & Personal Supplies", 
+                    details: "Prepaid SIM and personal essentials", 
+                    amount: 135, 
+                    period: "monthly",
+                    durationType: "all",
+                    activeMonths: []
+                }
+            ]
+        };
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function changeTotalMonths(val) {
+            totalMonths = Math.max(1, parseInt(val) || 18);
+            render();
+        }
+
+        function getActiveCount(item) {
+            if (item.durationType === 'all') return totalMonths;
+            return item.activeMonths.filter(m => m <= totalMonths).length;
+        }
+
+        function calculateItemTotal(item) {
+            let num = parseFloat(item.amount) || 0;
+            let activeCount = getActiveCount(item);
+            let monthlyUnitRate = item.period === 'weekly' ? (num * WEEKS_IN_MONTH) : num;
+            return monthlyUnitRate * activeCount;
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(value);
+        }
+
+        function updateData(type, id, field, value) {
+            const item = data[type].find(i => i.id === id);
+            if (item) {
+                item[field] = value;
+                render();
+            }
+        }
+
+        function toggleMonth(type, id, monthNum) {
+            const item = data[type].find(i => i.id === id);
+            if (item) {
+                if (item.activeMonths.includes(monthNum)) {
+                    item.activeMonths = item.activeMonths.filter(m => m !== monthNum);
+                } else {
+                    item.activeMonths.push(monthNum);
+                }
+                render();
+            }
+        }
+
+        function setDurationType(type, id, durationType) {
+            const item = data[type].find(i => i.id === id);
+            if (item) {
+                item.durationType = durationType;
+                if (durationType === 'custom' && item.activeMonths.length === 0) {
+                    item.activeMonths = [1, 2, 3];
+                }
+                render();
+            }
+        }
+
+        function removeEntry(type, id) {
+            data[type] = data[type].filter(i => i.id !== id);
+            render();
+        }
+
+        function addEntry(type) {
+            data[type].push({
+                id: generateId(),
+                name: "New " + (type === 'income' ? "Income Stream" : "Expense Item"),
+                details: "",
+                amount: 0,
+                period: "monthly",
+                durationType: "all",
+                activeMonths: []
+            });
+            render();
+        }
+
+        function renderList(type) {
+            const container = document.getElementById(`${type}List`);
+            container.innerHTML = '';
+
+            const isIncome = type === 'income';
+            const themeBorder = isIncome ? 'focus-within:border-emerald-400' : 'focus-within:border-rose-400';
+            const highlightColor = isIncome ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold';
+
+            data[type].forEach(item => {
+                const totalItemSum = calculateItemTotal(item);
+                const activeMonthsCount = getActiveCount(item);
+                const monthlyRate = item.period === 'weekly' ? (parseFloat(item.amount) || 0) * WEEKS_IN_MONTH : (parseFloat(item.amount) || 0);
+
+                let monthButtonsHTML = '';
+                if (item.durationType === 'custom') {
+                    monthButtonsHTML = `
+                        <div class="mt-2.5 pt-2 border-t border-slate-200">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Select Active Months:</span>
+                                <span class="text-[11px] font-medium text-slate-500">${activeMonthsCount} of ${totalMonths} months active</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1">
+                                ${Array.from({ length: totalMonths }, (_, i) => i + 1).map(m => {
+                                    const isActive = item.activeMonths.includes(m);
+                                    const btnClass = isActive 
+                                        ? (isIncome ? 'bg-emerald-600 text-white font-semibold' : 'bg-rose-600 text-white font-semibold')
+                                        : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100';
+                                    return `
+                                        <button type="button" onclick="toggleMonth('${type}', '${item.id}', ${m})"
+                                            class="w-7 h-6 text-[10px] rounded transition-colors flex items-center justify-center ${btnClass}">
+                                            M${m}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 shadow-xs transition-all ${themeBorder}`;
+
+                card.innerHTML = `
+                    <!-- ROW 1: Name, Amount, Unit & Delete -->
+                    <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                        <div class="flex-1 w-full">
+                            <input type="text" value="${item.name}" 
+                                oninput="updateData('${type}', '${item.id}', 'name', this.value)"
+                                class="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="Source Title">
+                        </div>
+                        
+                        <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                            <div class="relative w-28">
+                                <span class="absolute left-2.5 top-1.5 text-slate-400 text-sm">$</span>
+                                <input type="number" value="${item.amount}" 
+                                    oninput="updateData('${type}', '${item.id}', 'amount', this.value)"
+                                    class="w-full bg-white border border-slate-300 rounded pl-6 pr-2 py-1.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder="0.00" min="0" step="0.01">
+                            </div>
+
+                            <select onchange="updateData('${type}', '${item.id}', 'period', this.value)"
+                                class="bg-white border border-slate-300 rounded px-2 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="weekly" ${item.period === 'weekly' ? 'selected' : ''}>/wk</option>
+                                <option value="monthly" ${item.period === 'monthly' ? 'selected' : ''}>/mo</option>
+                            </select>
+
+                            <button onclick="removeEntry('${type}', '${item.id}')" 
+                                title="Delete item"
+                                class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded transition-colors text-lg leading-none">
+                                &times;
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ROW 2: Notes, Duration Selector & Item Lifetime Total -->
+                    <div class="flex flex-col sm:flex-row gap-2 pt-1 border-t border-slate-200/70 items-start sm:items-center justify-between text-xs">
+                        <div class="flex-1 w-full">
+                            <input type="text" value="${item.details || ''}" 
+                                oninput="updateData('${type}', '${item.id}', 'details', this.value)"
+                                class="w-full bg-transparent border-0 border-b border-dashed border-slate-300 focus:border-blue-500 px-1 py-0.5 text-slate-600 placeholder-slate-400 focus:outline-none text-xs"
+                                placeholder="Add notes (e.g. holiday job, terms, dates)...">
+                        </div>
+                        
+                        <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                            <!-- Duration Type Toggle -->
+                            <select onchange="setDurationType('${type}', '${item.id}', this.value)" 
+                                class="bg-white border border-slate-300 rounded px-2 py-1 text-[11px] font-medium text-slate-700 focus:outline-none">
+                                <option value="all" ${item.durationType === 'all' ? 'selected' : ''}>All ${totalMonths} Mos</option>
+                                <option value="custom" ${item.durationType === 'custom' ? 'selected' : ''}>Selected Mos</option>
+                            </select>
+
+                            <div class="bg-white px-2.5 py-1 rounded border border-slate-200 text-[11px] font-mono">
+                                Total: <span class="${highlightColor}">${formatCurrency(totalItemSum)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Months Bar (If Custom) -->
+                    ${monthButtonsHTML}
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function render() {
+            renderList('income');
+            renderList('expense');
+
+            let totalIncome = data.income.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+            let totalExpenses = data.expense.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+            let netBalance = totalIncome - totalExpenses;
+
+            document.getElementById('totalIncome').innerText = formatCurrency(totalIncome);
+            document.getElementById('totalExpenses').innerText = formatCurrency(totalExpenses);
+            document.getElementById('netBalance').innerText = formatCurrency(Math.abs(netBalance));
+
+            document.getElementById('avgMonthlyIncome').innerText = `Avg: ${formatCurrency(totalIncome / totalMonths)} /mo`;
+            document.getElementById('avgMonthlyExpenses').innerText = `Avg: ${formatCurrency(totalExpenses / totalMonths)} /mo`;
+            document.getElementById('avgMonthlyBalance').innerText = `Avg: ${formatCurrency(netBalance / totalMonths)} /mo`;
+
+            const balanceCard = document.getElementById('balanceCard');
+            const balanceLabel = document.getElementById('balanceLabel');
+            const netBalanceEl = document.getElementById('netBalance');
+
+            if (netBalance >= 0) {
+                balanceCard.className = "p-4 rounded-lg border bg-blue-50 border-blue-100";
+                balanceLabel.className = "text-xs text-blue-600 font-semibold uppercase tracking-wide";
+                balanceLabel.innerText = "Net Degree Surplus";
+                netBalanceEl.className = "text-2xl font-bold text-blue-700 mt-1";
+            } else {
+                balanceCard.className = "p-4 rounded-lg border bg-rose-50 border-rose-100";
+                balanceLabel.className = "text-xs text-rose-600 font-semibold uppercase tracking-wide";
+                balanceLabel.innerText = "Net Financial Shortfall";
+                netBalanceEl.className = "text-2xl font-bold text-rose-700 mt-1";
+                netBalanceEl.innerText = "-" + formatCurrency(Math.abs(netBalance));
+            }
+
+            const expenseBar = document.getElementById('expenseBar');
+            const incomeBar = document.getElementById('incomeBar');
+            const ratioText = document.getElementById('ratioText');
+
+            if (totalIncome === 0) {
+                expenseBar.style.width = '100%';
+                incomeBar.style.width = '0%';
+                ratioText.innerText = "No income recorded";
+                ratioText.className = "text-slate-500";
+            } else {
+                let expenseRatio = (totalExpenses / totalIncome) * 100;
+                if (expenseRatio > 100) {
+                    expenseBar.style.width = '100%';
+                    incomeBar.style.width = '0%';
+                    ratioText.innerText = `${expenseRatio.toFixed(1)}% of total income (Deficit)`;
+                    ratioText.className = "text-rose-500 font-bold";
+                } else {
+                    expenseBar.style.width = `${expenseRatio}%`;
+                    incomeBar.style.width = `${100 - expenseRatio}%`;
+                    ratioText.innerText = `${expenseRatio.toFixed(1)}% of income spent`;
+                    ratioText.className = "text-slate-500";
+                }
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
